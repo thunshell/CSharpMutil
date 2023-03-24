@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="Binary\ASCII16.cs" />
     <Compile Include="Binary\ASCII85.cs" />
+    <Compile Include="Binary\LZW.cs" />
     <Compile Include="Common.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

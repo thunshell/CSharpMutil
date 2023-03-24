@@ -48,5 +48,11 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CSharpMutil\CSharpMutil.csproj">
+      <Project>{7a9ba2ec-a3c0-4cfd-bb64-99c45ede9c56}</Project>
+      <Name>CSharpMutil</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
