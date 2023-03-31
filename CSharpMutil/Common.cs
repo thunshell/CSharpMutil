@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace CSharpMutil
 {
-    public class Common
+    public static class Common
     {
         public static List<byte> WhiteSpaces = new List<byte>(new byte[] { 0, 9, 10, 12, 13, 32 });
 
@@ -36,6 +36,41 @@ namespace CSharpMutil
             while (r > -1 && WhiteSpaces.Contains((byte)r))
                 r = encoded.ReadByte();
             return r;
+        }
+
+        public static bool Contains(this byte[] parent, byte[] child)
+        {
+            if (parent.Length <= 0 || child.Length <= 0 || child.Length > parent.Length || !parent.Contains(child[0]))
+                return false;
+            int index = parent.ToList().IndexOf(child[0]);
+            foreach (var item in child)
+            {
+                if (parent[index++] != item)
+                    return false;
+            }
+            return true;
+        }
+
+
+        public static bool Contains(this List<byte> parent, List<byte> child)
+        {
+            if (parent.Count <= 0 || child.Count <= 0 || child.Count > parent.Count || !parent.Contains(child[0]))
+                return false;
+            int index = 0;
+            int count;
+            do
+            {
+                index = parent.ToList().IndexOf(child[0], index);
+                if(index == -1) return false;
+                count = 0;
+                foreach (var item in child)
+                {
+                    if (parent[index++] != item)
+                        break;
+                    count++;
+                }
+            } while (count != child.Count);
+            return true;
         }
     }
 }

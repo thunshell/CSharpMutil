@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,7 +10,36 @@ namespace CSharpMutil.Binary
 {
     public class LZW
     {
-        public static void Encode(Stream source, Stream target)
+        public int EarlyChange { get; set; }
+
+        public LZW(int earlyChange = 1)
+        {
+            EarlyChange = earlyChange;
+        }
+
+        public byte[] Encode(byte[] input)
+        {
+            using (MemoryStream ms = new MemoryStream(input))
+            {
+                using (MemoryStream ms1 = new MemoryStream())
+                {
+                    Encode(ms, ms1);
+                    return ms1.ToArray();
+                }
+            }
+        }
+        public byte[] Decode(byte[] input)
+        {
+            using (MemoryStream ms = new MemoryStream(input))
+            {
+                using (MemoryStream ms1 = new MemoryStream())
+                {
+                    Decode(ms, ms1);
+                    return ms1.ToArray();
+                }
+            }
+        }
+        public void Encode(Stream source, Stream target)
         {
             source.Seek(0, SeekOrigin.Begin);
 
@@ -19,47 +49,65 @@ namespace CSharpMutil.Binary
                 dictionary.Add(((char)dictIndex).ToString(), dictIndex++);
 
             //256表示clear-table,257表示EOD
-            dictIndex += 2; //258开始
+            dictIndex++; //258开始
             int bitLength = 9;
 
             int len = 1;
             int b, v, prev = 0;
             string w = "";
-            string entry;
+            string wb;
 
             //开头256
             v = 256;
             Encode(target, v, ref prev, ref len, bitLength);
+            StringBuilder sb = new StringBuilder();
+            sb.Append(Convert.ToString(v, 2).PadLeft(bitLength, '0'));
 
             while ((b = source.ReadByte()) > -1)
             {
-                entry = w + (char)b;
-                if (dictionary.ContainsKey(entry))
-                    w = entry;
+                wb = w + (char)b;
+                if (dictionary.ContainsKey(wb))
+                    w = wb;
                 else
                 {
-                    dictionary.Add(entry, dictIndex++);
-                    //511 1023 2047;
-                    //初始9位,每次不足时增1位,最大12位
-                    if (dictIndex == Math.Pow(2, 9) - 1 || dictIndex == Math.Pow(2, 10) - 1 || dictIndex == Math.Pow(2, 11) - 1)
-                        bitLength++;
                     v = dictionary[w];
+                    sb.Append(Convert.ToString(v, 2).PadLeft(bitLength, '0'));
                     Encode(target, v, ref prev, ref len, bitLength);
                     w = ((char)b).ToString();
+
+                    //511 1023 2047;
+                    //初始9位,每次不足时增1位,最大12位
+                    dictionary.Add(wb, ++dictIndex);
+                    if (dictIndex == Math.Pow(2, bitLength) - this.EarlyChange)
+                    {
+                        bitLength++;
+                        len++;
+                    }
                 }
             }
 
             if (!string.IsNullOrEmpty(w))
             {
                 v = dictionary[w];
+                sb.Append(Convert.ToString(v, 2).PadLeft(bitLength, '0'));
                 Encode(target, v, ref prev, ref len, bitLength);
             }
 
             //末尾追加EOD
             v = 257;
+            sb.Append(Convert.ToString(v, 2).PadLeft(bitLength, '0'));
             Encode(target, v, ref prev, ref len, bitLength);
             if (prev > 0)
-                target.WriteByte((byte)prev);
+                Encode(target, 0, ref prev, ref len, bitLength);
+
+            //string a = sb.ToString();
+            //for (int i = 0; i < sb.Length; i += 8)
+            //{
+            //    string d = a.Substring(i, sb.Length - i < 8 ? sb.Length - i : 8);
+            //    int c = Convert.ToInt32(d, 2);
+            //    target.WriteByte((byte)c);
+            //    Console.Write(c + ",");
+            //}
         }
 
         /// <summary>
@@ -70,7 +118,7 @@ namespace CSharpMutil.Binary
         /// <param name="prev">前一个数值的二进制右len位</param>
         /// <param name="len"></param>
         /// <param name="bitLength">当前编码长度9,10,11,12</param>
-        static void Encode(Stream target, int v, ref int prev, ref int len, int bitLength)
+        void Encode(Stream target, int v, ref int prev, ref int len, int bitLength)
         {
             int t = (prev << bitLength) | v;
             int r = t >> len;
@@ -79,13 +127,16 @@ namespace CSharpMutil.Binary
             prev = (v & ((int)Math.Pow(2, len) - 1));
 
             //当len等于8时,右移8位刚好为一个字节
-            if (len++ == 8)
+            if (len >= 8)
             {
-                r = t & ((int)Math.Pow(2, 8) - 1);
-                target.WriteByte((byte)r);
-                len = 1;
+                int l = len;
+                int temp = prev;
                 prev = 0;
+                len -= 8;
+                Encode(target, temp, ref prev, ref len, bitLength);
             }
+            else
+                len += bitLength - 8;
         }
 
 
@@ -102,7 +153,7 @@ namespace CSharpMutil.Binary
         /// </summary>
         /// <param name="source"></param>
         /// <param name="target"></param>
-        public static void Decode(Stream source, Stream target)
+        public void Decode(Stream source, Stream target)
         {
             source.Seek(0, SeekOrigin.Begin);
 
@@ -111,65 +162,51 @@ namespace CSharpMutil.Binary
             while (dictIndex <= byte.MaxValue)
                 dictionary.Add(dictIndex, ((char)dictIndex++).ToString());
 
-
             //256表示clear-table,257表示EOD
-            dictIndex += 2; //258开始
+            dictionary.Add(dictIndex++, null);
+            dictionary.Add(dictIndex++, null);
+
             int bitLength = 9;
 
-            //string w = "";
-            //while (source.Position < source.Length - 1)
-            //{
-            //    int k = source.ReadByte();
-            //    string entry = null;
-            //    if (dictionary.ContainsKey(k))
-            //        entry = dictionary[k];
-            //    else if (k == dictionary.Count)
-            //        entry = w + w[0];
-
-            //    foreach (var c in entry)
-            //        target.WriteByte((byte)c);
-
-            //    // new sequence; add it to the dictionary
-            //    dictionary.Add(dictionary.Count, w + entry[0]);
-
-            //    w = entry;
-            //}
-
             string entry = "";
-            int len = 0;
+            int startIndex = 0;
             int prev = source.ReadByte();
-            int a = source.ReadByte();
-            string s = Convert.ToString(prev, 2).PadLeft(8, '0') + Convert.ToString(a, 2).PadLeft(8, '0');
-            int v = Convert.ToInt32(s.Substring(len, bitLength), 2);
-            prev = a;
-            len++;
+            int a;
+            string s;
+            int v;
 
             while (source.Position < source.Length)
             {
-                //511 1023 2047;
-                //初始9位,每次不足时增1位,最大12位
-                if (v == Math.Pow(2, 9) - 1 || v == Math.Pow(2, 10) - 1 || v == Math.Pow(2, 11) - 1)
-                    bitLength++;
                 a = source.ReadByte();
-                if(len >= 8)
+                if(startIndex >= 8)
                 {
                     prev = a;
-                    len = 0;
+                    startIndex = 0;
                     continue;
                 }
+                if (a == 134)
+                    ;
 
                 s = Convert.ToString(prev, 2).PadLeft(8, '0') + Convert.ToString(a, 2).PadLeft(8, '0');
-                v = Convert.ToInt32(s.Substring(len, bitLength), 2);
-                if (v == 256 || v == 257)
+                if(s.Length - startIndex < bitLength)
                 {
-                    continue;
+                    int b = source.ReadByte();
+                    s += Convert.ToString(b, 2).PadLeft(8, '0');
+                    a = b;
                 }
+                v = Convert.ToInt32(s.Substring(startIndex, bitLength), 2);
+                Console.Write(v + ",");
+                prev = a;
+                startIndex = 8 - (s.Length - (startIndex + bitLength));
+                if (v == 256) continue;
+                if (v == 257) break;
+                string w = entry;
                 if (dictionary.ContainsKey(v))
                 {
-                    if (!string.IsNullOrWhiteSpace(entry))
+                    if (!string.IsNullOrEmpty(entry))
                     {
                         entry += dictionary[v][0];
-                        dictionary.Add(dictionary.Count + 2, entry);
+                        dictionary.Add(dictionary.Count, entry);
                     }
                     entry = dictionary[v];
                 }
@@ -178,12 +215,16 @@ namespace CSharpMutil.Binary
                     entry += entry[0];
                     dictionary.Add(v, entry);
                 }
+                //511 1023 2047;
+                //初始9位,每次不足时增1位,最大12位
+                if (dictionary.Last().Key == Math.Pow(2, bitLength) - (this.EarlyChange + 1))
+                    bitLength++;
+
                 foreach (var c in dictionary[v])
                     target.WriteByte((byte)c);
 
-                prev = a;
-                len++;
             }
+            Console.Write("\r\n");
         }
     }
 }

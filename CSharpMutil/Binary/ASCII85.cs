@@ -141,6 +141,8 @@ namespace CSharpMutil.Binary
                 for (int i = 0; i < len + 1; i++)
                     target.WriteByte(c[i]);
             }
+            target.WriteByte((byte)'~');
+            target.WriteByte((byte)'>');
         }
     }
 }
