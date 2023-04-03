@@ -19,6 +19,9 @@ namespace CSharpMutil.Binary
      *     例如如字符串"A",只有1个字节,则n=1,追加4-n=3个\0,转后的字节取前n+1=2个编码后结果是"5l~>".
      * 类似256进制转换为85进制
      */
+    /// <summary>
+    /// ASCII base 85
+    /// </summary>
     public class ASCII85
     {
         public static byte[] Encode(byte[] bs)
@@ -47,13 +50,13 @@ namespace CSharpMutil.Binary
 
         public static string Encode(string str)
         {
-            byte[] bs = Encode(Encoding.UTF8.GetBytes(str));
-            return Encoding.UTF8.GetString(bs);
+            byte[] bs = Encode(Encoding.Default.GetBytes(str));
+            return Encoding.Default.GetString(bs);
         }
         public static string Decode(string str)
         {
-            byte[] bs = Decode(Encoding.UTF8.GetBytes(str));
-            return Encoding.UTF8.GetString(bs);
+            byte[] bs = Decode(Encoding.Default.GetBytes(str));
+            return Encoding.Default.GetString(bs);
         }
 
         public static void Decode(Stream encoded, Stream decoded)

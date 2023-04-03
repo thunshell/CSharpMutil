@@ -108,6 +108,7 @@ namespace CSharpMutil.Binary
             //    target.WriteByte((byte)c);
             //    Console.Write(c + ",");
             //}
+            Console.WriteLine(sb.ToString());
         }
 
         /// <summary>
@@ -120,6 +121,7 @@ namespace CSharpMutil.Binary
         /// <param name="bitLength">当前编码长度9,10,11,12</param>
         void Encode(Stream target, int v, ref int prev, ref int len, int bitLength)
         {
+            //Console.Write(v + ",");
             int t = (prev << bitLength) | v;
             int r = t >> len;
             target.WriteByte((byte)r);
@@ -184,18 +186,15 @@ namespace CSharpMutil.Binary
                     startIndex = 0;
                     continue;
                 }
-                if (a == 134)
-                    ;
 
                 s = Convert.ToString(prev, 2).PadLeft(8, '0') + Convert.ToString(a, 2).PadLeft(8, '0');
-                if(s.Length - startIndex < bitLength)
+                while (s.Length - startIndex < bitLength)
                 {
                     int b = source.ReadByte();
                     s += Convert.ToString(b, 2).PadLeft(8, '0');
                     a = b;
                 }
                 v = Convert.ToInt32(s.Substring(startIndex, bitLength), 2);
-                Console.Write(v + ",");
                 prev = a;
                 startIndex = 8 - (s.Length - (startIndex + bitLength));
                 if (v == 256) continue;
@@ -222,9 +221,7 @@ namespace CSharpMutil.Binary
 
                 foreach (var c in dictionary[v])
                     target.WriteByte((byte)c);
-
             }
-            Console.Write("\r\n");
         }
     }
 }
