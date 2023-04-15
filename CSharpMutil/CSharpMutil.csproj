@@ -44,6 +44,7 @@
     <Compile Include="Binary\ASCII16.cs" />
     <Compile Include="Binary\ASCII85.cs" />
     <Compile Include="Binary\BitMemory.cs" />
+    <Compile Include="Binary\CCITTFax.cs" />
     <Compile Include="Binary\LZW.cs" />
     <Compile Include="Binary\RunLength.cs" />
     <Compile Include="Common.cs" />
